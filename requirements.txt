@@ -3,6 +3,6 @@ torch
 faiss-cpu
 numpy
 PyPDF2
-transformers
+transformers==4.40.1
 langchain
 sentence-transformers
