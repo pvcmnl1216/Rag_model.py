@@ -8,34 +8,30 @@ from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM, pipeline
 
-# --- Streamlit Page Config ---
+# --- Streamlit Config ---
 st.set_page_config(page_title="Bible Q&A", layout="wide")
-st.markdown(
-    """
+st.markdown("""
     <style>
     .block-container {padding-top: 2rem;}
-    .st-emotion-cache-1avcm0n {padding: 2rem 3rem;}
     footer {visibility: hidden;}
     .stSidebar {display: none;}
     </style>
-    """, unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
-# --- Session State for Chat ---
+# --- Session State ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- File Upload (Admin Only) ---
 st.title("📖 Bible Q&A Chat")
 
-# --- Paths & Model Config ---
-PDF_PATH =  r"C:\Users\Philip Meshach\Rag_model\The King James Holy Bible.pdf"
+# --- Config ---
+PDF_PATH = r"C:\Users\Philip Meshach\Rag_model\The King James Holy Bible.pdf"  
 INDEX_FILE = "faiss_index.bin"
 CHUNKS_FILE = "text_chunks.pkl"
 EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 LLM_MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
-# --- Load Embedding Model ---
+# --- Embedding Model ---
 @st.cache_resource
 def load_embedder():
     tokenizer = AutoTokenizer.from_pretrained(EMBED_MODEL_NAME)
@@ -55,7 +51,7 @@ def get_embeddings(texts):
         outputs = embed_model(**inputs)
     return mean_pooling(outputs, inputs['attention_mask']).cpu().numpy()
 
-# --- Load/Create FAISS Index ---
+# --- PDF Processing & Indexing ---
 def process_pdf_and_index():
     reader = PdfReader(PDF_PATH)
     full_text = "\n".join([page.extract_text() or "" for page in reader.pages])
@@ -63,9 +59,8 @@ def process_pdf_and_index():
     chunks = splitter.split_text(full_text)
 
     embeddings = []
-    batch_size = 16
-    for i in range(0, len(chunks), batch_size):
-        batch = chunks[i:i + batch_size]
+    for i in range(0, len(chunks), 16):
+        batch = chunks[i:i + 16]
         batch_embeds = get_embeddings(batch)
         embeddings.append(batch_embeds)
 
@@ -103,10 +98,10 @@ def load_llm():
 
 generator, tokenizer = load_llm()
 
-# --- Ask Question ---
+# --- Answering Logic ---
 def ask_question(query, k=5, max_context_tokens=1000):
     if not index or not chunks:
-        return "Bible data not ready. Please upload the document as admin."
+        return "Bible data not ready."
 
     query_embed = get_embeddings([query])
     D, I = index.search(query_embed.astype("float32"), k)
@@ -142,11 +137,10 @@ Answer:"""
         return answer_part.strip()
     return output.strip()
 
-# --- Chat Interface ---
+# --- Chat UI ---
 with st.container():
     for msg in st.session_state.messages:
-        role, text = msg["role"], msg["text"]
-        st.chat_message(role).write(text)
+        st.chat_message(msg["role"]).write(msg["text"])
 
     query = st.chat_input("Ask a Bible question...")
     if query:
@@ -156,5 +150,3 @@ with st.container():
         answer = ask_question(query)
         st.session_state.messages.append({"role": "assistant", "text": answer})
         st.chat_message("assistant").write(answer)
-
-
