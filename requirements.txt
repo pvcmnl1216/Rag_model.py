@@ -1,8 +1,8 @@
 streamlit==1.35.0
-torch==2.5.1
+torch==2.2.2
+faiss-cpu==1.7.4
 numpy
 PyPDF2
-transformers==4.40.1
-langchain==0.1.16
+transformers==4.38.2
 sentence-transformers==2.6.1
-# faiss-cpu removed due to installation issues on Streamlit Cloud
+langchain==0.1.16
